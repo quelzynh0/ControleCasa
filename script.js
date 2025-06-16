@@ -139,7 +139,7 @@ function openEditModal(index = null) {
     <option value="baixa" ${item.priority === 'baixa' ? 'selected' : ''}>Baixa</option>
   </select>
   <input type="number" id="modalItemValor" placeholder="Valor (R$)" value="${item.valor || ''}" min="0" step="0.01">
-  <input type="text" id="modalItemLink" placeholder="Link de compra" value="${item.link || ''}">
+  <input type="text" id="modalItemLink" placeholder="Loja ou Link da compra" value="${item.link || ''}">
   <button onclick="saveModalItem(${isEdit ? index : null}, '${modalId}', '${item.id}')">Salvar</button>
   <button class="cancel-btn" onclick="document.getElementById('${modalId}').remove()">Cancelar</button>
   ${isEdit ? `<button class="delete-btn" onclick="excluirItem('${item.id}', '${modalId}')">Excluir</button>` : ''}
