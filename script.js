@@ -64,7 +64,7 @@ function renderRoomSelection() {
 
 function renderItems() {
   content.innerHTML = `<h2>${selectedRoom}</h2>`;
-  
+
   const addBtn = document.createElement('button');
   addBtn.textContent = 'Adicionar Novo Item';
   addBtn.className = 'add-item-btn';
@@ -72,49 +72,102 @@ function renderItems() {
   addBtn.onclick = () => openEditModal();
   content.appendChild(addBtn);
 
+  // 🔽 Filtros
+  const filtroDiv = document.createElement('div');
+  filtroDiv.style = 'display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;';
+
+filtroDiv.innerHTML = `
+  <div style="display: flex; flex-direction: column;">
+    <label><strong>Status:</strong></label>
+    <select id="filtroStatusItens" style="padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+      <option value="todos" selected>Todos</option>
+      <option value="tenho">Apenas os que Tenho</option>
+      <option value="naoTenho">Apenas os que Faltam</option>
+    </select>
+  </div>
+  <div style="display: flex; flex-direction: column;">
+    <label><strong>Prioridade:</strong></label>
+    <select id="filtroPrioridadeItens" style="padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+      <option value="todas" selected>Todas</option>
+      <option value="alta">Alta</option>
+      <option value="media">Média</option>
+      <option value="baixa">Baixa</option>
+    </select>
+  </div>
+`;
+
+  content.appendChild(filtroDiv);
+
   const list = document.createElement('div');
-
-  (items[selectedRoom] || []).forEach((item, i) => {
-    const div = document.createElement('div');
-    div.className = 'item';
-
-    const top = document.createElement('div');
-    top.className = 'item-top';
-    const title = document.createElement('strong');
-    title.textContent = item.name;
-    const priority = document.createElement('small');
-    priority.textContent = `Prioridade: ${item.priority}`;
-    top.appendChild(title);
-    top.appendChild(priority);
-
-    const actions = document.createElement('div');
-    actions.className = 'item-actions';
-
-    const toggleBtn = document.createElement('button');
-    toggleBtn.textContent = item.have ? 'Tenho' : 'Não Tenho';
-    toggleBtn.className = item.have ? 'have-btn-true' : 'have-btn-false';
-    toggleBtn.onclick = () => {
-      item.have = !item.have;
-      enviarItemParaSheet(item);
-      renderItems();
-    };
-
-    const editBtn = document.createElement('button');
-    editBtn.textContent = 'Editar';
-    editBtn.className = 'edit-btn';
-    editBtn.onclick = () => openEditModal(i);
-
-    actions.appendChild(toggleBtn);
-    actions.appendChild(editBtn);
-
-    div.appendChild(top);
-    div.appendChild(document.createTextNode(`Valor: R$ ${item.valor.toFixed(2).replace('.', ',')}`));
-    div.appendChild(actions);
-    list.appendChild(div);
-  });
-
   content.appendChild(list);
+
+  const statusSelect = filtroDiv.querySelector('#filtroStatusItens');
+  const prioridadeSelect = filtroDiv.querySelector('#filtroPrioridadeItens');
+
+  function renderFiltrados() {
+    list.innerHTML = '';
+    const status = statusSelect.value;
+    const prioridade = prioridadeSelect.value;
+
+    const filtrados = (items[selectedRoom] || []).filter(i => {
+      const statusOk =
+        status === 'todos' ? true :
+        status === 'tenho' ? i.have :
+        !i.have;
+
+      const prioridadeOk =
+        prioridade === 'todas' ? true :
+        i.priority === prioridade;
+
+      return statusOk && prioridadeOk;
+    });
+
+    filtrados.forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = 'item';
+
+      const top = document.createElement('div');
+      top.className = 'item-top';
+      const title = document.createElement('strong');
+      title.textContent = item.name;
+      const priority = document.createElement('small');
+      priority.textContent = `Prioridade: ${item.priority}`;
+      top.appendChild(title);
+      top.appendChild(priority);
+
+      const actions = document.createElement('div');
+      actions.className = 'item-actions';
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.textContent = item.have ? 'Tenho' : 'Não Tenho';
+      toggleBtn.className = item.have ? 'have-btn-true' : 'have-btn-false';
+      toggleBtn.onclick = () => {
+        item.have = !item.have;
+        enviarItemParaSheet(item);
+        renderFiltrados();
+      };
+
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Editar';
+      editBtn.className = 'edit-btn';
+      editBtn.onclick = () => openEditModal(i);
+
+      actions.appendChild(toggleBtn);
+      actions.appendChild(editBtn);
+
+      div.appendChild(top);
+      div.appendChild(document.createTextNode(`Valor: R$ ${item.valor.toFixed(2).replace('.', ',')}`));
+      div.appendChild(actions);
+      list.appendChild(div);
+    });
+  }
+
+  statusSelect.onchange = renderFiltrados;
+  prioridadeSelect.onchange = renderFiltrados;
+
+  renderFiltrados();
 }
+
 
 function openEditModal(index = null) {
   const modalId = `modal-${Date.now()}`;
@@ -156,7 +209,7 @@ function saveModalItem(index, modalId, id) {
   const link = document.getElementById('modalItemLink').value.trim();
 
   if (!name) {
-    alert('Por favor, insira um nome válido para o item.');
+    showModalMensagem('Por favor, insira um nome válido para o item.');
     return;
   }
 
@@ -176,23 +229,26 @@ function saveModalItem(index, modalId, id) {
 }
 
 function excluirItem(id, modalId) {
-  const confirmar = confirm("Tem certeza que deseja excluir este item?");
-  if (!confirmar) return;
-
-  fetch(SHEET_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ID: id, _excluir: true })
-  }).then(() => {
-    alert("Item excluído com sucesso!");
-    document.getElementById(modalId).remove();
-    location.reload(); // Recarrega a página para atualizar os dados
-  }).catch(err => {
-    console.error("Erro ao excluir:", err);
-    alert("Erro ao excluir item.");
+  showModalConfirmacao("Tem certeza que deseja excluir este item?", () => {
+    fetch(SHEET_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ID: id, _excluir: true })
+    })
+    .then(() => {
+      showModalMensagem("Item excluído com sucesso!", () => {
+        document.getElementById(modalId).remove();
+        location.reload();
+      });
+    })
+    .catch(err => {
+      console.error("Erro ao excluir:", err);
+      showModalMensagem("Erro ao excluir item.");
+    });
   });
 }
+
 
 
 function renderResumo() {
@@ -305,3 +361,54 @@ function enviarItemParaSheet(item) {
 }
 
 carregarItensDoSheet();
+
+function showModalMensagem(texto, callback = null) {
+  const modalId = `modal-msg-${Date.now()}`;
+  const modal = document.createElement('div');
+  modal.id = modalId;
+  modal.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;";
+
+  const box = document.createElement('div');
+  box.style = "background:#fff;padding:20px 30px;border-radius:8px;text-align:center;max-width:90%;box-shadow:0 2px 10px rgba(0,0,0,0.3);";
+  box.innerHTML = `
+    <p style="margin-bottom: 20px;">${texto}</p>
+    <button style="padding:10px 20px;border:none;background:#4CAF50;color:white;border-radius:5px;cursor:pointer;">OK</button>
+  `;
+
+  box.querySelector('button').onclick = () => {
+    document.getElementById(modalId).remove();
+    if (callback) callback();
+  };
+
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+}
+
+function showModalConfirmacao(mensagem, aoConfirmar) {
+  const modalId = `modal-confirm-${Date.now()}`;
+  const modal = document.createElement('div');
+  modal.id = modalId;
+  modal.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;";
+
+  const box = document.createElement('div');
+  box.style = "background:#fff;padding:20px 30px;border-radius:8px;text-align:center;max-width:90%;box-shadow:0 2px 10px rgba(0,0,0,0.3);";
+  box.innerHTML = `
+    <p style="margin-bottom: 20px;">${mensagem}</p>
+    <div style="display: flex; gap: 10px; justify-content: center;">
+      <button id="btnConfirmar" style="padding:10px 20px;background:#d9534f;color:white;border:none;border-radius:5px;cursor:pointer;">Sim</button>
+      <button id="btnCancelar" style="padding:10px 20px;background:#ccc;border:none;border-radius:5px;cursor:pointer;">Cancelar</button>
+    </div>
+  `;
+
+  box.querySelector('#btnConfirmar').onclick = () => {
+    document.getElementById(modalId).remove();
+    aoConfirmar();
+  };
+  box.querySelector('#btnCancelar').onclick = () => {
+    document.getElementById(modalId).remove();
+  };
+
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+}
+
